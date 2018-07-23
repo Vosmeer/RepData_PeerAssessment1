@@ -1,25 +1,160 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course 5, Week 2, Quiz 1"
+author: "Michel Mariën"
+date: "23 juli 2018"
+output: html_document
 ---
 
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12,warning=FALSE)
+```
 
-## Loading and preprocessing the data
+## Session Setup
+
+```{r session setup, results="hide",message=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(reshape2)
+library(mice)
+library(randomForest)
+
+options(scipen=999)
+
+```
+
+## Upload data
+
+```{r Upload data}
+
+  bronmap<-"C:\\_Data\\Mijn Documenten\\R\\Scripts Coursera\\Course 5 - Week 2"
+  
+  data_raw_link<-paste(bronmap,"activity.csv",sep="\\")
+  
+  data_raw<-read.csv(data_raw_link,sep = ",",header = T,stringsAsFactors = F)
+
+```
+
+## Data cleaning
+
+```{r Data cleaning}
+
+  data_raw$rowno<-1:nrow(data_raw)
+
+  data_raw$date<-ymd(data_raw$date)
+  
+  data_raw$weekday<-wday(data_raw$date)
+  
+  data_raw$dagnaam<-ifelse(data_raw$weekday>5,"Weekend","Week")
+  
+```
+
+## Assignments
+
+###  Assignment 1
+
+###### Code for reading in the dataset and/or processing the data
+
+See chunk {r Upload data}
+
+###  Assignment 2
+
+###### Histogram of the total number of steps taken each day
+
+```{r Assignment 2}
+Sum<-data_raw %>% group_by(date) %>% summarize(day_sum=sum(steps))
+
+ggplot(Sum,aes(date,day_sum))+geom_col(col="black",fill="blue")+ylab("total no of steps/day")
+
+```
+
+###  Assignment 3
+
+##### Mean and median number of steps taken each day
 
 
+```{r Assignment 3}
 
-## What is mean total number of steps taken per day?
+Mean<-data_raw %>% group_by(date) %>% summarize(Mean = mean(steps, na.rm=TRUE))
+
+head(Mean)
+
+Median<-data_raw %>% group_by(date) %>% filter(steps>0) %>% 
+    summarize(Median = median(steps, na.rm=TRUE))
+
+head(Median)
+
+dataset<-left_join(Mean,Median,by="date")
+
+head(dataset)
+
+```
+
+###  Assignment 4
+
+##### Time series plot of the average number of steps taken
+
+```{r Assignment 4}
+
+ggplot(dataset,aes(date,Mean))+geom_line(col="blue")+ylab("Mean (steps/day)")
+
+```
+
+###  Assignment 5
+
+##### The 5-minute interval that, on average, contains the maximum number of steps
 
 
+```{r Assignment 5}
 
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+Max <- data_raw %>% group_by(date)%>% filter(steps==max(steps))
 
 
+head(Max)
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+###  Assignment 6
+
+##### Code to describe and show a strategy for imputing missing data
+
+
+```{r Assignment 6, cache=TRUE, results="hide"}
+
+data_mice<-mice(data_raw, method="rf")
+  
+dataset_imp <- complete(data_mice)
+
+```
+
+###  Assignment 7
+
+##### Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r Assignment 7}
+
+Mean_imp<-dataset_imp %>% group_by(date) %>% summarize(mean=mean(steps))
+
+ggplot(Mean_imp,aes(date,mean))+geom_col(col="black",fill="blue")
+
+```
+
+
+### Assignment 8
+
+##### Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r Assignment 8}
+
+Mean_imp$weekday<-wday(Mean_imp$date)
+
+Mean_imp$dagnaam<-ifelse(Mean_imp$weekday>5,"Weekend","Week")
+
+Mean_week<-dataset_imp  %>% group_by(dagnaam,interval) %>% summarize(Mean = mean(steps, na.rm=TRUE))
+
+ggplot(Mean_week,aes(interval,Mean))+geom_line(aes(col=dagnaam))+facet_grid(.~dagnaam)+
+  ggtitle("Number of steps per interval")
+
+```
+
+
